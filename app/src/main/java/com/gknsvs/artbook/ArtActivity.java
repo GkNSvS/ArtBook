@@ -11,9 +11,11 @@ import androidx.core.content.ContextCompat;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteStatement;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.ImageDecoder;
 import android.net.Uri;
 import android.os.Build;
@@ -43,6 +45,55 @@ public class ArtActivity extends AppCompatActivity {
         View view=binding.getRoot();
         setContentView(view);
         registerLauncher();
+        sqlData=openOrCreateDatabase("Arts",MODE_PRIVATE,null);
+        Intent intent=getIntent();
+        String intentInfo = intent.getStringExtra("intentInfo");
+        if (intentInfo.matches("addList")){
+            newArtActivity();
+        }else {
+            chosenArtActivity(intent.getIntExtra("id",-1));
+        }
+    }
+
+    private void newArtActivity() {
+        binding.imgArt.setImageResource(R.drawable.select);
+        binding.txtName.setText("");
+        binding.txtInfo.setText("");
+        binding.txtYear.setText("");
+        binding.btnSave.setVisibility(View.VISIBLE);
+
+    }
+
+    private void chosenArtActivity(int id) {
+        if(id<0)
+            newArtActivity();
+        else{
+            binding.btnSave.setVisibility(View.INVISIBLE);
+            getDB(id);
+        }
+
+    }
+
+    private void getDB(int id) {
+
+        try {
+            Cursor cursor=sqlData.rawQuery("SELECT * FROM arts WHERE id = ?",new String[] {String.valueOf(id)});
+            int nameIx=cursor.getColumnIndex("name");
+            int infoIx=cursor.getColumnIndex("info");
+            int yearIx=cursor.getColumnIndex("year");
+            int imgIx=cursor.getColumnIndex("image");
+            while (cursor.moveToNext()){
+                binding.txtName.setText(cursor.getString(nameIx));
+                binding.txtInfo.setText(cursor.getString(infoIx));
+                binding.txtYear.setText(cursor.getString(yearIx));
+                byte[] bytes=cursor.getBlob(imgIx);
+                binding.imgArt.setImageBitmap(BitmapFactory.decodeByteArray(bytes,0,bytes.length));
+            }
+            cursor.close();
+
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
     public void save(View view){
@@ -56,23 +107,23 @@ public class ArtActivity extends AppCompatActivity {
         smallImg.compress(Bitmap.CompressFormat.PNG,50,outputStream);
         byte[] bytes=outputStream.toByteArray();
 
-        saveToDB(name,info,year,bytes);
+        saveToDB(name,info,String.valueOf(year),bytes);
 
         Intent intent=new Intent(ArtActivity.this,MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         startActivity(intent);
     }
 
-    private void saveToDB(String name, String info, int year, byte[] bytes) {
+    private void saveToDB(String name, String info, String year, byte[] bytes) {
         try {
-                sqlData=openOrCreateDatabase("Arts",MODE_PRIVATE,null);
-                sqlData.execSQL("CREATE TABLE IF NOT EXISTS arts(id INTEGER PRIMARY KEY,name VARCHAR,info VARCHAR,year INT,image BLOB)");
+
+                sqlData.execSQL("CREATE TABLE IF NOT EXISTS arts(id INTEGER PRIMARY KEY,name VARCHAR,info VARCHAR,year VARCHAR,image BLOB)");
                 String sqlString="INSERT INTO arts(name,info,year,image) VALUES(?,?,?,?)";
             SQLiteStatement sqLiteStatement=sqlData.compileStatement(sqlString);
             sqLiteStatement.bindString(1,name);
             sqLiteStatement.bindString(2,info);
-            sqLiteStatement.bindLong(3,year);
-            sqLiteStatement.bindBlob(3,bytes);
+            sqLiteStatement.bindString(3,year);
+            sqLiteStatement.bindBlob(4,bytes);
             sqLiteStatement.execute();
         }catch (Exception e){
             e.printStackTrace();
@@ -83,7 +134,7 @@ public class ArtActivity extends AppCompatActivity {
         int witdh,height;
         witdh=img.getWidth();
         height=img.getHeight();
-        float bitmapRatio=witdh/height;
+        float bitmapRatio=(float)witdh/(float)height;
         if(bitmapRatio>1)
         {//landscape
             witdh=maxSize;
@@ -93,7 +144,7 @@ public class ArtActivity extends AppCompatActivity {
             height=maxSize;
             witdh= (int) (height*bitmapRatio);
         }
-        return img.createScaledBitmap(img,witdh,height,true);
+        return Bitmap.createScaledBitmap(img,witdh,height,true);
     }
 
     public void imgOpen(View view){

@@ -2,6 +2,7 @@ package com.gknsvs.artbook;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
 
 import android.content.Intent;
 import android.database.Cursor;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
     ArrayList<Art> artArrayList;
+    ArtAdaptor artAdaptor;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -28,6 +30,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(view);
         artArrayList=new ArrayList<>();
         getDB();
+        binding.recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        artAdaptor=new ArtAdaptor(artArrayList);
+        binding.recyclerView.setAdapter(artAdaptor);
     }
 
     private void getDB() {
@@ -45,9 +50,11 @@ public class MainActivity extends AppCompatActivity {
                 artArrayList.add(art);
             }
             cursor.close();
+            artAdaptor.notifyDataSetChanged();
         }catch (Exception e){
-
+            e.printStackTrace();
         }
+
     }
 
     @Override
@@ -62,6 +69,7 @@ public class MainActivity extends AppCompatActivity {
         if(item.getItemId()==R.id.addItem)
         {
             Intent intent=new Intent(this,ArtActivity.class);
+            intent.putExtra("intentInfo","addList");
             startActivity(intent);
         }
         return super.onOptionsItemSelected(item);
